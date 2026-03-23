@@ -1,0 +1,215 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../core/theme/app_colors.dart';
+import '../services/lawyer_service.dart';
+import '../widgets/case_report_widget.dart';
+
+class MyOffersTab extends StatefulWidget {
+  const MyOffersTab({super.key});
+
+  @override
+  State<MyOffersTab> createState() => _MyOffersTabState();
+}
+
+class _MyOffersTabState extends State<MyOffersTab> {
+  late Future<List<dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = LawyerService.getMyOffers();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _future = LawyerService.getMyOffers();
+    });
+  }
+
+  String _offerStatusLabel(String status) {
+    const map = {
+      'PENDING': '⏳ Değerlendirmede',
+      'SELECTED': '✅ Seçildi',
+      'REJECTED': '❌ Reddedildi',
+    };
+    return map[status] ?? status;
+  }
+
+  Color _offerStatusColor(String status) {
+    if (status == 'SELECTED') return AppColors.accent;
+    if (status == 'REJECTED') return AppColors.danger;
+    return AppColors.warning;
+  }
+
+  String _caseStatusLabel(String status) {
+    const map = {
+      'MATCHING': '🔍 Eşleşme',
+      'WAITING_USER_DEPOSIT': '💳 Güven Bedeli Bekleniyor',
+      'WAITING_PAYMENT': '💳 Ödeme Bekleniyor',
+      'PRE_CASE_REVIEW': '🧐 Ön İnceleme',
+      'PENDING_USER_AUTH': '⏳ Vekalet Bekleniyor',
+      'AUTHORIZED': '✅ Vekalet Onaylı',
+      'FILED_IN_COURT': '🏛️ Dava Açıldı',
+      'ACTIVE': '🟢 Aktif',
+    };
+    return map[status] ?? status;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currencyFormat = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
+    final dateFormat = DateFormat('dd.MM.yyyy');
+
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      color: AppColors.primary,
+      backgroundColor: AppColors.bgSurface,
+      child: FutureBuilder<List<dynamic>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: AppColors.danger),
+                  const SizedBox(height: 16),
+                  Text(snapshot.error.toString(), textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  ElevatedButton(onPressed: _refresh, child: const Text('Tekrar Dene')),
+                ],
+              ),
+            );
+          }
+
+          final offers = snapshot.data ?? [];
+
+          if (offers.isEmpty) {
+            return ListView(
+              padding: const EdgeInsets.all(24),
+              children: const [
+                SizedBox(height: 80),
+                Icon(Icons.local_offer_outlined, size: 80, color: AppColors.textMuted),
+                SizedBox(height: 16),
+                Text('Henüz teklif vermediniz.', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                SizedBox(height: 8),
+                Text('Açık davalar sekmesinden teklif vererek başlayabilirsiniz.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+              ],
+            );
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: offers.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            itemBuilder: (ctx, i) {
+              final o = offers[i];
+              final tahminiAlacak = (o['tahminiAlacak'] ?? 0).toDouble();
+              final offerStatus = o['status'] ?? 'PENDING';
+              final caseStatus = o['caseStatus'] ?? '';
+              final tarihStr = o['createdAt'] != null ? dateFormat.format(DateTime.parse(o['createdAt'])) : '';
+              final int okunmamisMesaj = o['okunmamisMesaj'] ?? 0;
+
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.bgCard,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _offerStatusColor(offerStatus).withValues(alpha: 0.4),
+                    width: offerStatus == 'SELECTED' ? 2 : 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Üst Satır: Dava Türü & Teklif Durumu
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(o['caseDavaTuru'] ?? 'Hukuki Dava', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 2),
+                              Text('${o['caseSehir'] ?? ''} • $tarihStr', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _offerStatusColor(offerStatus).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(_offerStatusLabel(offerStatus), style: TextStyle(color: _offerStatusColor(offerStatus), fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 24, color: AppColors.border),
+
+                    // Teklif Detayı
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Teklif Türü', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                        Text(
+                          o['ucretModeli'] == 'yuzde'
+                              ? '%${o['oran'] ?? 0} Yüzde'
+                              : currencyFormat.format((o['sabitUcret'] ?? 0).toDouble()),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Tahmini Alacak', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                        Text(currencyFormat.format(tahminiAlacak), style: const TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                    if (caseStatus.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Dava Durumu', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                          Text(_caseStatusLabel(caseStatus), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        ],
+                      ),
+                    ],
+
+                    // YZ DOSYA ANALİZİ VE DETAYLAR
+                    CaseReportWidget(data: o['hesaplamaVerisi'], c: o),
+
+                    // Yeni Mesaj Badge
+                    if (okunmamisMesaj > 0) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(color: AppColors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.danger.withValues(alpha: 0.3))),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.notifications_active, color: AppColors.danger, size: 16),
+                            const SizedBox(width: 6),
+                            Text('$okunmamisMesaj yeni mesaj', style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
