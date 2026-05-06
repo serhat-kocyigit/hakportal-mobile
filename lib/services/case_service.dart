@@ -99,6 +99,8 @@ class CaseService {
     required String aciklama,
     int? puan,
     String? yorum,
+    double? tahsilat,
+    Map<String, dynamic>? extra,
   }) async {
     try {
       final Map<String, dynamic> data = {
@@ -107,6 +109,8 @@ class CaseService {
       };
       if (puan != null) data['puan'] = puan;
       if (yorum != null) data['yorum'] = yorum;
+      if (tahsilat != null) data['tahsilat'] = tahsilat;
+      if (extra != null) data.addAll(extra);
 
       final response = await ApiService.dio.put('/cases/$caseId/status', data: data);
       return response.data;

@@ -3,8 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 import 'package:provider/provider.dart';
-import 'open_cases_tab.dart';
-import 'my_offers_tab.dart';
+import 'incoming_requests_tab.dart';
 import 'active_cases_tab.dart';
 import 'messages_tab.dart';
 import 'lawyer_profile_tab.dart';
@@ -21,7 +20,7 @@ class LawyerPanelScreen extends StatefulWidget {
 }
 
 class _LawyerPanelScreenState extends State<LawyerPanelScreen> {
-  String _currentSection = 'acikDavalar';
+  String _currentSection = 'gelenTalepler';
   int _unreadNotifCount = 0;
   int _unreadMessageCount = 0;
   String _avukatName = '';
@@ -131,10 +130,9 @@ class _LawyerPanelScreenState extends State<LawyerPanelScreen> {
   }
 
   Widget _buildDrawer() {
-    final isAcik = _currentSection == 'acikDavalar';
-    final isTeklifler = _currentSection == 'tekliflerim';
-    final isAktif = _currentSection == 'aktifDavalar';
-    final isKapanan = _currentSection == 'kapananDavalar';
+    final isTalepler = _currentSection == 'gelenTalepler';
+    final isAktif = _currentSection == 'aktifMuvekkiller';
+    final isKapanan = _currentSection == 'kapananDosyalar';
     final isMesajlar = _currentSection == 'mesajlar';
     final isProfil = _currentSection == 'profil';
 
@@ -174,14 +172,14 @@ class _LawyerPanelScreenState extends State<LawyerPanelScreen> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('MENÜ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textMuted, letterSpacing: 1)),
+                child: Text('MÜVEKKİL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textMuted, letterSpacing: 1)),
               ),
             ),
-            _buildDrawerItem('⚖️', 'Açık Davalar', isAcik, () => _showSection('acikDavalar')),
-            _buildDrawerItem('📋', 'Tekliflerim', isTeklifler, () => _showSection('tekliflerim')),
-            _buildDrawerItem('🟢', 'Aktif Davalarım', isAktif, () => _showSection('aktifDavalar')),
-            _buildDrawerItem('🛑', 'Kapanan Davalar', isKapanan, () => _showSection('kapananDavalar')),
+            _buildDrawerItem('📞', 'Gelen Talepler', isTalepler, () => _showSection('gelenTalepler')),
+            _buildDrawerItem('🟢', 'Aktif Müvekkiller', isAktif, () => _showSection('aktifMuvekkiller')),
             _buildDrawerItem('💬', 'Mesajlar', isMesajlar, () => _showSection('mesajlar'), badge: _unreadMessageCount > 0 ? _unreadMessageCount : null),
+            _buildDrawerItem('🛑', 'Kapanan Dosyalar', isKapanan, () => _showSection('kapananDosyalar')),
+            _buildDrawerItem('🤖', 'YZ Asistan (RAG)', false, () { Navigator.pop(context); context.push('/ai_chat'); }),
             const Divider(height: 32, indent: 20, endIndent: 20, color: AppColors.border),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
@@ -236,13 +234,12 @@ class _LawyerPanelScreenState extends State<LawyerPanelScreen> {
 
   Widget _buildBody() {
     switch (_currentSection) {
-      case 'acikDavalar': return const OpenCasesTab();
-      case 'tekliflerim': return const MyOffersTab();
-      case 'aktifDavalar': return const ActiveCasesTab();
-      case 'kapananDavalar': return const ClosedCasesTab();
+      case 'gelenTalepler': return const IncomingRequestsTab();
+      case 'aktifMuvekkiller': return const ActiveCasesTab();
+      case 'kapananDosyalar': return const ClosedCasesTab();
       case 'mesajlar': return const MessagesTab();
       case 'profil': return const LawyerProfileTab();
-      default: return const OpenCasesTab();
+      default: return const IncomingRequestsTab();
     }
   }
 }

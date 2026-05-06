@@ -773,11 +773,7 @@ class _CalculatorTabState extends State<CalculatorTab> {
       if (_wizardUploadedUrls.isNotEmpty) {
         _showSnackBar('✅ Dava dosyanız belgelerle birlikte oluşturuldu!', AppColors.accent);
       } else {
-        _showSnackBar('✅ Dava dosyanız oluşturuldu! Şimdi isterseniz belgelerinizi yükleyebilirsiniz.', AppColors.accent);
-        // Belge yükleme modalını sadece belge yoksa göster
-        if (_createdCaseId != null) {
-          _showBelgeYukleModal(_createdCaseId!);
-        }
+        _showSnackBar('✅ Dava dosyanız oluşturuldu!', AppColors.accent);
       }
     } catch (e) {
       _showSnackBar('Dosya oluşturma hatası: $e', AppColors.danger);
@@ -1038,27 +1034,35 @@ class _CalculatorTabState extends State<CalculatorTab> {
   // ÖN DEĞERLENDİRME TESTİ
   Widget _buildPreTest() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      margin: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        color: AppColors.bgSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(38),
+            blurRadius: 32,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Center(child: Text('🔍', style: TextStyle(fontSize: 48))),
-          const SizedBox(height: 16),
+          const SizedBox(height: 15),
           const Text(
             'Ön Değerlendirme Testi',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           const Text(
             'Hak durumunuzu 30 saniyede anlayın. 3 soruyu yanıtlayın, sisteme girin.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.6),
           ),
           const SizedBox(height: 32),
 
@@ -1507,25 +1511,26 @@ class _CalculatorTabState extends State<CalculatorTab> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(20),
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.bgSurface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
                 ),
-                child: const Text('🤖', style: TextStyle(fontSize: 20)),
+                child: const Text('🤖', style: TextStyle(fontSize: 22)),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 15),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Akıllı Karar Asistanı',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryLight),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
                     ),
                     Text(
                       'Sizi adım adım yönlendirerek hukuki senaryonuzu çıkaracağız.',
-                      style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                      style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.normal),
                     ),
                   ],
                 ),
@@ -1847,58 +1852,122 @@ class _CalculatorTabState extends State<CalculatorTab> {
           const SizedBox(height: 12),
 
           if (combined != null) ...[
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: (isMatch == true)
-                    ? AppColors.accent.withAlpha(35)
-                    : (isMatch == false)
-                        ? AppColors.warning.withAlpha(25)
-                        : AppColors.bgSurface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: (isMatch == true)
-                      ? AppColors.accent
-                      : (isMatch == false)
-                          ? AppColors.warning
-                          : AppColors.border,
+            if (isMatch == false && scannedFesihTuru != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.bgCard,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.danger, width: 2),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: const BoxDecoration(
+                        color: AppColors.danger,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.block, color: Colors.white, size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '🛑 BELGE & BEYAN ÇAKIŞMASI TESPİT EDİLDİ',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('BEYANINIZ', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _getFesihTuruLabel(expectedFesihTuru),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(width: 1, height: 40, color: AppColors.border),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('BELGEDE GÖRÜNEN', style: TextStyle(fontSize: 10, color: Color(0xFFfca311))),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _getFesihTuruLabel(scannedFesihTuru),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFFfca311)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: AppColors.danger.withAlpha(20)),
+                      child: const Text(
+                        '⚡ Sistem her iki senaryoyu da ayrı ayrı hesaplayacak. Avukatınız gerçek senaryoyu belirleyecektir.',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (isMatch == true)
+              Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.bgCard,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.accent, width: 2),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: const BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.black, size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '✅ BELGE VE BEYANINIZ UYUMLU',
+                              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        'Belgeden okunan fesih türü (${_getFesihTuruLabel(scannedFesihTuru)}) beyanınızla örtüşüyor. İspat gücünüz yüksek.',
+                        style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        isMatch == true ? Icons.check_circle : Icons.info_outline,
-                        color: isMatch == true ? AppColors.accent : AppColors.warning,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          isMatch == true ? 'BELGE VE BEYANINIZ UYUMLU' : 'BELGE ANALİZ EDİLDİ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: isMatch == true ? AppColors.accent : AppColors.warning,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: _wizardChangeUpload,
-                        style: TextButton.styleFrom(foregroundColor: AppColors.primaryLight),
-                        child: const Text('Değiştir'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (scannedFesihTuru != null)
-                    Text(
-                      'Belgeden okunan fesih türü ($scannedFesihTuru) beyanınıza göre kontrol edildi.',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5, height: 1.35),
-                    ),
-                ],
-              ),
-            ),
             const SizedBox(height: 10),
             if ((combined['dates'] is List) && (combined['dates'] as List).isNotEmpty)
               Container(
@@ -2005,6 +2074,23 @@ class _CalculatorTabState extends State<CalculatorTab> {
         ],
       ),
     );
+  }
+
+  String _getFesihTuruLabel(String? slug) {
+    if (slug == null) return 'Bilinmiyor';
+    switch (slug) {
+      case 'ISVEREN_FESHI_GECERLI': return 'İşveren Geçerli Fesih (4857/17)';
+      case 'ISVEREN_FESHI_AHLAK': return 'İşveren Haklı Fesih / Ahlak-25/2';
+      case 'ISCI_ISTIFASI': return 'İşçi İstifası';
+      case 'IKALE_IBRANAME': return 'İkale / İbraname';
+      case 'askerlik': return 'Askerlik';
+      case 'emeklilik': return 'Emeklilik';
+      case 'evlilik': return 'Evlilik';
+      case 'hakli_neden': return 'Haklı Neden (24.md)';
+      case 'haksiz_gecerli': return 'İşveren Haksız Fesih';
+      case 'ahlak': return 'İşveren 25/2 Fesih';
+      default: return slug;
+    }
   }
 
   @override

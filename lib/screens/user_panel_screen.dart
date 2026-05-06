@@ -169,6 +169,7 @@ class _UserPanelScreenState extends State<UserPanelScreen> {
             _buildDrawerItem('📋', 'Davalarım', isDavalarim, () => _showSection('davalarim')),
             _buildDrawerItem('🧮', 'Yeni Hesaplama', isYeniHesaplama, () => _showSection('yeniHesaplama')),
             _buildDrawerItem('💬', 'Mesajlarım', isMesajlar, () => _showSection('mesajlarim'), badge: _unreadMessageCount > 0 ? _unreadMessageCount : null),
+
             const Divider(height: 32, indent: 20, endIndent: 20, color: AppColors.border),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),

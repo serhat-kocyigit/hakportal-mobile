@@ -76,15 +76,14 @@ class _ClosedCasesTabState extends State<ClosedCasesTab> {
     // Server'dan bu formattaki veriler `/api/avukat/kapanan-davalar` (veya tekliflerim) üzerinden geliyor
     // Şimdilik LawyerService.getMyOffers()'i filtreleyerek ya da yeni api metodunu kullanarak alıyoruz.
     try {
-      final offers = await LawyerService.getMyOffers();
-      final closed = offers.where((t) {
-        final status = t['caseStatus'] ?? '';
-        final offerStatus = t['status'] ?? '';
-        return offerStatus == 'SELECTED' && ['KAPANDI', 'CLOSED', 'CANCELED'].contains(status);
+      final files = await LawyerService.getAllClientFiles();
+      final closed = files.where((t) {
+        final status = t['status'] ?? '';
+        return ['KAPANDI', 'CLOSED', 'CANCELED'].contains(status);
       }).toList();
       return closed;
     } catch (e) {
-      throw Exception('Kapanan davalar alınamadı: $e');
+      throw Exception('Kapanan dosyalar alınamadı: $e');
     }
   }
 
@@ -155,12 +154,12 @@ class _ClosedCasesTabState extends State<ClosedCasesTab> {
                 tahminiAlacak = double.tryParse(rawAlacak) ?? 0.0;
               }
 
-              final String davaTuru = c['caseDavaTuru'] ?? 'Hukuki Dava';
-              final String sehir = (c['caseSehir'] ?? '').toString();
+              final String davaTuru = c['davaTuru'] ?? 'Hukuki Dava';
+              final String sehir = (c['sehir'] ?? '').toString();
 
-              final String muvekkilAd = (c['muvekkilAd'] ?? '').toString();
+              final String muvekkilAd = (c['kullanici']?['ad'] ?? '').toString();
               final String muvekkilInitial = muvekkilAd.isNotEmpty ? muvekkilAd[0].toUpperCase() : 'M';
-              final String? muvekkilAvatar = c['muvekkilAvatar'];
+              final String? muvekkilAvatar = c['kullanici']?['avatar'];
 
               final String ucretText;
               final ucretModeli = c['ucretModeli']?.toString();

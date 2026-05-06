@@ -6,6 +6,7 @@ import '../screens/user_panel_screen.dart';
 import '../screens/lawyer_panel_screen.dart';
 import '../screens/chat_screen.dart';
 import '../screens/admin/admin_panel_screen.dart';
+import '../screens/ai_chat_screen.dart';
 
 class AppRouter {
   static final router = GoRouter(
@@ -34,6 +35,10 @@ class AppRouter {
       GoRoute(
         path: '/admin_panel',
         builder: (context, state) => const AdminPanelScreen(),
+      ),
+      GoRoute(
+        path: '/ai_chat',
+        builder: (context, state) => const AIChatScreen(),
       ),
       GoRoute(
         path: '/chat/:caseId',

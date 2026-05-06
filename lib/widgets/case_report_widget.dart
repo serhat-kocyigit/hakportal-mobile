@@ -8,8 +8,14 @@ import '../services/api_service.dart';
 class CaseReportWidget extends StatelessWidget {
   final dynamic rawData;
   final Map<String, dynamic> c;
+  final bool isLawyer;
 
-  const CaseReportWidget({super.key, required dynamic data, required this.c}) : rawData = data;
+  const CaseReportWidget({
+    super.key, 
+    required dynamic data, 
+    required this.c,
+    this.isLawyer = false,
+  }) : rawData = data;
 
   Map<String, dynamic>? get parsedData {
     if (rawData == null) return null;
@@ -148,7 +154,7 @@ class CaseReportWidget extends StatelessWidget {
       
       debugPrint('CASE_REPORT_DEBUG: sToplamRaw resolved to = $sToplamRaw, yzAktif = $yzAktif');
 
-      if (yzAktif || true) { // Şimdilik zorla göstererek nerede gizlendiğini bulalım
+      if (isLawyer && (yzAktif || true)) { // Avukatlar için zorla göster, kullanıcılar için gizle
         final kat = c['riskKategorisi'] ?? c['caseRiskKategorisi'] ?? parsedData?['riskKategorisi'] ?? 'BILINMIYOR';
         Color badgeColor = AppColors.textPrimary;
         if (kat == 'PREMIUM') badgeColor = const Color(0xFFFB5607);

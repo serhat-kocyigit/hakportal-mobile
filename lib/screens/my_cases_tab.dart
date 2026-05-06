@@ -3,8 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme/app_colors.dart';
 import '../services/case_service.dart';
-import '../services/offer_service.dart';
-import '../screens/teklifler_screen.dart';
+import '../services/lawyer_service.dart';
+import '../widgets/case_report_widget.dart';
 
 class MyCasesTab extends StatefulWidget {
   const MyCasesTab({super.key});
@@ -19,1397 +19,699 @@ class _MyCasesTabState extends State<MyCasesTab> {
   @override
   void initState() {
     super.initState();
+    _loadData();
+  }
+
+  void _loadData() {
     _casesFuture = CaseService.getMyCases();
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _casesFuture = CaseService.getMyCases();
-    });
-  }
-
-  String _getStatusLabel(String status) {
-    const statusMap = {
-      'OPEN': '⏱️ Teklif Bekleniyor',
-      'MATCHING': '🧐 Avukat İnceliyor',
-      'WAITING_USER_DEPOSIT': '✅ 99 TL Güven Bedeli Bekleniyor',
-      'WAITING_PAYMENT': '💳 Avukat Ödemesi Bekleniyor',
-      'WAITING_LAWYER_PAYMENT': '💳 Avukat Ödemesi Bekleniyor',
-      'PRE_CASE_REVIEW': '🧐 Ön İnceleme',
-      'PENDING_USER_AUTH': '⏳ Vekalet İsteği',
-      'AUTHORIZED': '✅ Vekalet Onaylı',
-      'FILED_IN_COURT': '🏛️ Dava Açıldı',
-      'LAWYER_ASSIGNED': '✅ Avukat Atandı',
-      'IN_PROGRESS': '💬 İşlemde',
-      'ACTIVE': '🟢 Aktif',
-      'KAPANDI': '🛑 Kapatıldı',
-      'ILK_GORUSME': '🤝 İlk Görüşme',
-      'DAVA_ACILDI': '⚖️ Dava Açıldı',
-      'DURUSMA': '🏛️ Duruşma',
-      'TAHSIL': '💰 Tahsil Edildi',
-      'CLOSED': '🛑 Kapatıldı',
-    };
-    return statusMap[status] ?? status;
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'OPEN':
-        return const Color(0xFF6C63FF);
-      case 'MATCHING':
-        return const Color(0xFFFFB703);
-      case 'WAITING_USER_DEPOSIT':
-        return const Color(0xFF00D9A3);
-      case 'WAITING_PAYMENT':
-      case 'WAITING_LAWYER_PAYMENT':
-        return const Color(0xFF60A5FA);
-      case 'ACTIVE':
-      case 'AUTHORIZED':
-      case 'PRE_CASE_REVIEW':
-        return const Color(0xFF00D9A3);
-      case 'CLOSED':
-      case 'KAPANDI':
-        return const Color(0xFF6B7280);
-      case 'TAHSIL':
-        return const Color(0xFFE91E63);
-      default:
-        return AppColors.primaryLight;
-    }
-  }
-
-  Color _getStatusBgColor(String status) {
-    switch (status) {
-      case 'OPEN':
-        return const Color(0xFF6C63FF).withAlpha(40);
-      case 'MATCHING':
-        return const Color(0xFFFFB703).withAlpha(40);
-      case 'WAITING_USER_DEPOSIT':
-        return const Color(0xFF00D9A3).withAlpha(40);
-      case 'WAITING_PAYMENT':
-      case 'WAITING_LAWYER_PAYMENT':
-        return const Color(0xFF60A5FA).withAlpha(40);
-      case 'ACTIVE':
-      case 'AUTHORIZED':
-      case 'PRE_CASE_REVIEW':
-        return const Color(0xFF00D9A3).withAlpha(40);
-      case 'CLOSED':
-      case 'KAPANDI':
-        return const Color(0xFF6B7280).withAlpha(40);
-      case 'TAHSIL':
-        return const Color(0xFFE91E63).withAlpha(40);
-      default:
-        return AppColors.primaryLight.withAlpha(40);
-    }
-  }
-
-  Widget _renderDetayliDavaRaporu(Map<String, dynamic>? data) {
-    if (data == null) return const SizedBox.shrink();
-
-    final currencyFormat = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
-    final kidem = data['kidem'] as Map<String, dynamic>?;
-    final ihbar = data['ihbar'] as Map<String, dynamic>?;
-    final diger = data['diger'] as Map<String, dynamic>?;
-    final legal = data['legal'] as Map<String, dynamic>?;
-    final toplamNet = (data['toplamNet'] ?? 0).toDouble();
-
-    final ekstraHaklar = [
-      {'name': 'Boşta Geçen Süre', 'val': (diger?['bostaGecenSureBrut'] ?? 0).toDouble(), 'color': const Color(0xFF52B788)},
-      {'name': 'İşe Başlatmama', 'val': (diger?['iseBaslatmamaBrut'] ?? 0).toDouble(), 'color': const Color(0xFFFFB703)},
-      {'name': 'Kötü Niyet', 'val': (diger?['kotuNiyetNet'] ?? 0).toDouble(), 'color': const Color(0xFFE63946)},
-      {'name': 'Sendikal', 'val': (diger?['sendikalNet'] ?? 0).toDouble(), 'color': const Color(0xFF9D4EDD)},
-      {'name': 'Ödenmemiş Maaş', 'val': (diger?['odenmemisMaasBrut'] ?? 0).toDouble(), 'color': const Color(0xFF4CC9F0)},
-      {'name': 'Fazla Mesai', 'val': (diger?['mesaiBrut'] ?? 0).toDouble(), 'color': const Color(0xFFF72585)},
-      {'name': 'Yıllık İzin', 'val': (diger?['izinBrut'] ?? 0).toDouble(), 'color': const Color(0xFFF8961E)},
-      {'name': 'Bakiye Süre', 'val': (diger?['bakiyeSureTazminatBrut'] ?? 0).toDouble(), 'color': const Color(0xFF43AA8B)},
-    ];
-
-    final aktifEkstra = ekstraHaklar.where((h) => (h['val'] as double) > 0).toList();
-
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Hukuki Nitelendirme
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00D9A3).withAlpha(13),
-              border: Border(bottom: BorderSide(color: AppColors.border)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '⚖️ Hukuki Nitelendirme',
-                      style: TextStyle(
-                        color: Color(0xFF00D9A3),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Text(
-                          'Tahmini Toplam',
-                          style: TextStyle(fontSize: 10, color: AppColors.textMuted),
-                        ),
-                        Text(
-                          currencyFormat.format(toplamNet),
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primaryLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  legal?['gerekce'] ?? 'Sistem tarafından dava konusu derlendi.',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Hesaplama Detayları
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                // Kıdem ve İhbar
-                if ((kidem?['net'] ?? 0) > 0 || (ihbar?['net'] ?? 0) > 0)
-                  Row(
-                    children: [
-                      if ((kidem?['net'] ?? 0) > 0)
-                        Expanded(
-                          child: _buildCalcBox(
-                            'Kıdem Tazminatı',
-                            currencyFormat.format((kidem?['net'] ?? 0).toDouble()),
-                            const Color(0xFF00D9A3),
-                          ),
-                        ),
-                      if ((kidem?['net'] ?? 0) > 0 && (ihbar?['net'] ?? 0) > 0)
-                        const SizedBox(width: 8),
-                      if ((ihbar?['net'] ?? 0) > 0)
-                        Expanded(
-                          child: _buildCalcBox(
-                            'İhbar Tazminatı',
-                            currencyFormat.format((ihbar?['net'] ?? 0).toDouble()),
-                            const Color(0xFFA2B9FF),
-                          ),
-                        ),
-                    ],
-                  ),
-
-                // Ekstra Haklar
-                if (aktifEkstra.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: aktifEkstra.map((h) {
-                      return Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.bgCard,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: (h['color'] as Color).withAlpha(102)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '⚖️ ${h['name']}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: h['color'] as Color,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              currencyFormat.format(h['val'] as double),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCalcBox(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withAlpha(26)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _renderBelgeler(dynamic belgeler) {
-    if (belgeler == null || !(belgeler is List) || belgeler.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Text('📄', style: TextStyle(fontSize: 14)),
-              SizedBox(width: 8),
-              Text(
-                'İspat Belgeleri',
-                style: TextStyle(
-                  color: AppColors.primaryLight,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ...belgeler.map((b) {
-            final name = b['name']?.toString() ?? 'Belge';
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                   const Icon(Icons.attach_file, size: 14, color: AppColors.textMuted),
-                   const SizedBox(width: 8),
-                   Expanded(
-                     child: Text(
-                       name,
-                       style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                       maxLines: 1,
-                       overflow: TextOverflow.ellipsis,
-                     ),
-                   ),
-                ],
-              ),
-            );
-          }).toList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDavaActions(Map<String, dynamic> d) {
-    final status = d['status'] ?? 'OPEN';
-    final teklifSayisi = d['teklifSayisi'] ?? 0;
-    final bekleyenTeklif = d['bekleyenTeklif'] ?? teklifSayisi;
-    final engagementStatus = d['engagementStatus'];
-    final tahsilAciklama = d['tahsilAciklama'] ?? '';
-
-    List<Widget> actions = [];
-
-    // OPEN - Teklifler varsa gör, yoksa bekle
-    if (status == 'OPEN') {
-      if (teklifSayisi > 0) {
-        actions.add(
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _showTeklifler(d),
-              icon: const Icon(Icons.visibility_outlined, size: 16),
-              label: Text('Teklifleri Gör ($bekleyenTeklif)'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-        );
-      } else {
-        actions.add(
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: const Text(
-              '⏳ Avukat teklifi bekleniyor...',
-              style: TextStyle(fontSize: 13, color: AppColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        );
-      }
-      // Sil butonu
-      actions.add(
-        TextButton.icon(
-          onPressed: () => _showDeleteConfirmation(d['id']),
-          icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFFF4D4F)),
-          label: const Text('İlanı Sil', style: TextStyle(color: Color(0xFFFF4D4F))),
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-          ),
-        ),
-      );
-    }
-
-    // MATCHING - Avukat inceleme durumu
-    else if (status == 'MATCHING') {
-      if (engagementStatus == 'WAITING_USER_DEPOSIT') {
-        actions.add(
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00D9A3).withAlpha(20),
-              border: Border.all(color: const Color(0xFF00D9A3).withAlpha(77)),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              '✅ Avukatınız belgeleri inceleyip dosyayı kabul etti! 99 TL güven bedelini ödeyerek süreci başlatın.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF00D9A3), height: 1.4),
-            ),
-          ),
-        );
-        actions.add(
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _showOdemeModal(d['id']),
-              icon: const Icon(Icons.payment, size: 16),
-              label: const Text('✅ 99 TL Güven Bedeli Öde'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00D9A3),
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        );
-      } else {
-        actions.add(
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFB703).withAlpha(20),
-              border: Border.all(color: const Color(0xFFFFB703).withAlpha(77)),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              '🧐 Seçtiğiniz avukat belgelerinizi inceliyor... Kabul ederse bildirim alacaksınız.',
-              style: TextStyle(fontSize: 12, color: Color(0xFFFFB703), height: 1.4),
-            ),
-          ),
-        );
-      }
-    }
-
-    // Ödeme bekleyen durumlar
-    else if (status == 'WAITING_PAYMENT' || status == 'WAITING_LAWYER_PAYMENT') {
-      actions.add(
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: const Text(
-            '⏳ Avukat platform bedelini ödüyor...',
-            style: TextStyle(fontSize: 13, color: AppColors.textMuted),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
-
-    // Vekalet isteği
-    else if (status == 'PENDING_USER_AUTH') {
-      actions.add(
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _approveUserAuth(d['id']),
-            icon: const Icon(Icons.gavel_outlined, size: 16),
-            label: const Text('⚠️ Avukata Vekalet Ver (Onayla)'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00D9A3),
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-      );
-      actions.add(const SizedBox(height: 8));
-      actions.add(
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _loadMesaj(d['id'], status),
-            icon: const Icon(Icons.chat_bubble_outline, size: 16),
-            label: const Text('💬 Mesajlaş'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              side: const BorderSide(color: AppColors.border),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Tahsilat onayı
-    else if (status == 'TAHSIL') {
-      actions.add(
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _showCollectionModal(d['id'], tahsilAciklama),
-            icon: const Icon(Icons.check_circle_outline, size: 16),
-            label: const Text('✔️ Tahsilatı Onayla ve Dosyayı Kapat'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE91E63),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-      );
-      actions.add(const SizedBox(height: 8));
-      actions.add(
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _loadMesaj(d['id'], status),
-            icon: const Icon(Icons.chat_bubble_outline, size: 16),
-            label: const Text('💬 Mesajlaş'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              side: const BorderSide(color: AppColors.border),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Kapanan davalar - Mesajlaşma kapalı
-    else if (['CLOSED', 'KAPANDI', 'CANCELED'].contains(status)) {
-      actions.add(
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: null, // Disabled
-            icon: const Icon(Icons.lock_outline, size: 16),
-            label: const Text('🔒 Dava Dosyası Kapandı'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              side: const BorderSide(color: AppColors.border),
-              disabledForegroundColor: AppColors.textMuted,
-            ),
-          ),
-        ),
-      );
-    }
-    // Aktif davalar - sadece mesajlaş
-    else if ([
-      'PRE_CASE_REVIEW', 'AUTHORIZED', 'ACTIVE', 'LAWYER_ASSIGNED',
-      'FILED_IN_COURT', 'IN_PROGRESS', 'ILK_GORUSME', 'DAVA_ACILDI',
-      'DURUSMA'
-    ].contains(status)) {
-      actions.add(
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _loadMesaj(d['id'], status),
-            icon: const Icon(Icons.chat_bubble_outline, size: 16),
-            label: const Text('💬 Mesajlaş'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              side: const BorderSide(color: AppColors.border),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: actions,
-    );
-  }
-
-  void _showTeklifler(Map<String, dynamic> caseItem) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TekliflerScreen(caseItem: caseItem),
-      ),
-    ).then((result) {
-      if (result == true) _refresh(); // Teklif seçildiyse yenile
-    });
-  }
-
-  Future<void> _showDeleteConfirmation(String caseId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Dava İlanını Sil'),
-        content: const Text(
-          'Bu dava ilanını kalıcı olarak silmek istediğinize emin misiniz?\n\n(Bu işlem geri alınamaz)',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('İptal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
-            child: const Text('Sil'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await CaseService.deleteCase(caseId);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Dava ilanı başarıyla silindi.'),
-              backgroundColor: AppColors.accent,
-            ),
-          );
-        }
-        _refresh();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString()), backgroundColor: AppColors.danger),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _approveUserAuth(String caseId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Vekalet Onayı'),
-        content: const Text(
-          'Avukatınıza resmi vekaleti verdiğinizi ve davayı üstlenmesi için yetkilendirdiğinizi onaylıyor musunuz?\n\n* Onayladığınızda avukat yetkilenip mahkemede davanızı açacaktır.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('Onayla'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await CaseService.updateStatus(
-          caseId: caseId,
-          status: 'AUTHORIZED',
-          aciklama: 'Kullanıcı avukata vekalet verdiğini ve yetkilendirdiğini onayladı.',
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Vekalet Avukata Onaylandı!'),
-              backgroundColor: AppColors.accent,
-            ),
-          );
-        }
-        _refresh();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString()), backgroundColor: AppColors.danger),
-          );
-        }
-      }
-    }
-  }
-
-  void _showOdemeModal(String caseId) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.bgSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => _OdemeModal(caseId: caseId, onSuccess: _refresh),
-    );
-  }
-
-  void _showCollectionModal(String caseId, String aciklama) {
-    final match = RegExp(r'(\d+)\s*TL').firstMatch(aciklama);
-    final miktar = match != null ? '${match.group(1)} TL' : 'Bilinmeyen Tutar';
-    int puan = 5;
-    final yorumController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          backgroundColor: AppColors.bgCard,
-          title: const Row(children: [
-            Text('💰 ', style: TextStyle(fontSize: 24)),
-            Text('Dava Kapanış Onayı'),
-          ]),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Avukatınız bu davanın başarıyla sonuçlandığını (veya anlaşıldığını) bildirdi.',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                ),
-                SizedBox(height: 16),
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSurface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    children: [
-                      Text('Tahsil Edilen Toplam Tutar:', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                      SizedBox(height: 4),
-                      Text(
-                        miktar,
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.accent),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 12),
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Color(0xFFFFF3CD),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Color(0xFFFFEEBA)),
-                  ),
-                  child: Text(
-                    'Önemli Uyarı: Yukarıdaki tutar fiilen anlaştığınız tutar ile uyuşmuyorsa onaylamayınız.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF856404), height: 1.4),
-                  ),
-                ),
-                SizedBox(height: 20),
-                Text('Avukatınızı Değerlendirin', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    return IconButton(
-                      onPressed: () => setState(() => puan = index + 1),
-                      icon: Icon(index < puan ? Icons.star : Icons.star_border, color: Colors.amber, size: 32),
-                    );
-                  }),
-                ),
-                SizedBox(height: 12),
-                TextField(
-                  controller: yorumController,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: 'Avukatınız hakkındaki düşüncelerinizi paylaşın...',
-                    alignLabelWithHint: true,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hayır, İptal')),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  await CaseService.updateStatus(
-                    caseId: caseId,
-                    status: 'CLOSED',
-                    aciklama: 'Müvekkil davanın sonuçlandığını onayladı.',
-                    puan: puan,
-                    yorum: yorumController.text.trim(),
-                  );
-                  if (context.mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('🎉 Dava başarıyla kapatıldı!'),
-                        backgroundColor: AppColors.accent,
-                      ),
-                    );
-                  }
-                  _refresh();
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(e.toString()), backgroundColor: AppColors.danger),
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE91E63)),
-              child: const Text('Evet, Onayla & Kapat'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _loadMesaj(String caseId, String status) {
-    context.push('/chat/$caseId');
+    setState(() => _loadData());
   }
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
-    final dateFormat = DateFormat('dd.MM.yyyy');
+    final cf = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
+    final df = DateFormat('dd.MM.yyyy');
 
     return RefreshIndicator(
       onRefresh: _refresh,
       color: AppColors.primary,
-      backgroundColor: AppColors.bgSurface,
       child: FutureBuilder<List<dynamic>>(
         future: _casesFuture,
         builder: (context, snapshot) {
-          // Loading State - Web'deki gibi spinner
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Yükleniyor...',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
           }
-
-          // Error State
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 64, color: AppColors.danger),
-                    const SizedBox(height: 16),
-                    Text(
-                      snapshot.error.toString(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _refresh,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Tekrar Dene'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
+          if (snapshot.hasError) return _buildErrorState(snapshot.error.toString());
 
           final cases = snapshot.data ?? [];
+          if (cases.isEmpty) return _buildEmptyState();
 
-          // Empty State - Web'deki gibi 📁
-          if (cases.isEmpty) {
-            return ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                const SizedBox(height: 80),
-                const Icon(Icons.folder_open, size: 80, color: AppColors.textMuted),
-                const SizedBox(height: 16),
-                const Text(
-                  'Henüz dava dosyanız yok.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Hesaplama yapın ve avukat teklifleri alın.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    // Yeni hesaplama sekmesine git
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text('Hesaplamaya Başla'),
-                ),
-              ],
-            );
-          }
-
-          // Dava Grid - Web'deki gibi (gap: 20px)
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: cases.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 20),
-            itemBuilder: (context, index) {
-              final d = cases[index];
-              final status = d['status'] ?? 'OPEN';
-              
-              // TÜR DÖNÜŞÜM HATASI DÜZELTİLDİ:
-              double tahminiAlacak = 0.0;
-              final rawAlacak = d['tahminiAlacak'];
-              if (rawAlacak is num) {
-                tahminiAlacak = rawAlacak.toDouble();
-              } else if (rawAlacak is String) {
-                tahminiAlacak = double.tryParse(rawAlacak) ?? 0.0;
-              }
-
-              final tarihStr = d['createdAt'];
-              final dateStr = tarihStr != null
-                  ? dateFormat.format(DateTime.parse(tarihStr))
-                  : '';
-              final hesaplamaVerisi = d['hesaplamaVerisi'] as Map<String, dynamic>?;
-
-              // dava-card (Web'deki birebir stil)
-              return Container(
-                decoration: BoxDecoration(
-                  color: AppColors.bgCard,
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(20),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // dava-card-header
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // dava-card-title
-                                Text(
-                                  d['davaTuru'] ?? 'Kıdem/İhbar Davası',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                // dava-card-sub
-                                Text(
-                                  '${d['sehir'] ?? 'Belirsiz'} • $dateStr',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // status-badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _getStatusBgColor(status),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: _getStatusColor(status).withAlpha(77),
-                              ),
-                            ),
-                            child: Text(
-                              _getStatusLabel(status),
-                              style: TextStyle(
-                                color: _getStatusColor(status),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Divider
-                    Divider(height: 1, color: AppColors.border.withAlpha(100)),
-
-                    // dava-card-body
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // dava-detail-row: Tahmini Alacak
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Tahmini Alacak',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textMuted,
-                                ),
-                              ),
-                              // alacak styling (accent, bold)
-                              Text(
-                                currencyFormat.format(tahminiAlacak),
-                                style: const TextStyle(
-                                  color: AppColors.accent,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-
-                          // dava-detail-row: Teklif Sayısı
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Teklif Sayısı',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textMuted,
-                                ),
-                              ),
-                              Text(
-                                '${d['teklifSayisi'] ?? 0} avukat',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // renderDetayliDavaRaporu - Hesaplama detayları
-                          _renderDetayliDavaRaporu(hesaplamaVerisi),
-
-                          // _renderBelgeler - İspat belgeleri
-                          _renderBelgeler(d['ispatBelgeleri']),
-                        ],
-                      ),
-                    ),
-
-                    // dava-card-actions
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      child: _buildDavaActions(d),
-                    ),
-                  ],
-                ),
-              );
-            },
+            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            itemBuilder: (ctx, i) => _buildUserDavaCard(ctx, cases[i], df, cf),
           );
         },
       ),
     );
   }
-}
 
-// Ödeme Modalı - 99₺ Güven Bedeli
-class _OdemeModal extends StatefulWidget {
-  final String caseId;
-  final VoidCallback onSuccess;
+  Widget _buildUserDavaCard(BuildContext context, dynamic d, DateFormat df, NumberFormat cf) {
+    final status = d['status'] ?? 'OPEN';
+    final String davaId = d['id'].toString();
+    final String davaTuru = d['davaTuru'] ?? 'Kıdem/İhbar Davası';
+    final String sehir = d['sehir'] ?? '';
+    final String dateStr = d['createdAt'] != null ? df.format(DateTime.parse(d['createdAt'])) : '';
+    
+    double tahminiAlacak = 0.0;
+    if (d['tahminiAlacak'] is num) tahminiAlacak = d['tahminiAlacak'].toDouble();
+    else if (d['tahminiAlacak'] is String) tahminiAlacak = double.tryParse(d['tahminiAlacak']) ?? 0.0;
 
-  const _OdemeModal({required this.caseId, required this.onSuccess});
-
-  @override
-  State<_OdemeModal> createState() => _OdemeModalState();
-}
-
-class _OdemeModalState extends State<_OdemeModal> {
-  final _kartNoController = TextEditingController();
-  final _sonKullanmaController = TextEditingController();
-  final _cvvController = TextEditingController();
-  final _kartSahibiController = TextEditingController();
-  bool _isLoading = false;
-  String? _offerId;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadOfferId();
-  }
-
-  Future<void> _loadOfferId() async {
-    try {
-      final caseData = await CaseService.getCaseDetails(widget.caseId);
-      final teklifler = caseData['teklifler'] as List?;
-      if (teklifler != null) {
-        for (final t in teklifler) {
-          if (t['status'] == 'SELECTED') {
-            setState(() => _offerId = t['id']);
-            break;
-          }
-        }
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _processPayment() async {
-    final kartNo = _kartNoController.text.replaceAll(' ', '');
-    final sonKullanma = _sonKullanmaController.text;
-    final cvv = _cvvController.text;
-    final kartSahibi = _kartSahibiController.text.trim();
-
-    if (kartNo.length < 16) {
-      _showError('Geçerli kart numarası girin.');
-      return;
-    }
-    if (!sonKullanma.contains('/')) {
-      _showError('Son kullanma tarihi eksik.');
-      return;
-    }
-    if (cvv.length < 3) {
-      _showError('CVV eksik.');
-      return;
-    }
-    if (kartSahibi.length < 3) {
-      _showError('Kart sahibi adı eksik.');
-      return;
-    }
-    if (_offerId == null) {
-      _showError('Teklif bilgisi eksik.');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      await OfferService.payUserDeposit(
-        offerId: _offerId!,
-        kartNo: kartNo,
-        kartSahibi: kartSahibi,
-        sonKullanma: sonKullanma,
-        cvv: cvv,
-      );
-
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎉 Güven ödemesi başarılı!'),
-            backgroundColor: AppColors.accent,
-          ),
-        );
-      }
-      widget.onSuccess();
-    } catch (e) {
-      if (mounted) _showError(e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppColors.danger),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
-
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.bgCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            const Text(
-              '💳 Güven (Ciddiyet) Ödemesi',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-
-            // Bilgi Kartı - odeme-info-card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.bgCard,
-                border: Border.all(color: AppColors.primary),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  _buildInfoRow('Hizmet', 'Platform Ciddiyet Bedeli'),
-                  _buildInfoRow('Kapsam', 'Avukatla Eşleşme Güvencesi'),
-                  const Divider(height: 24, color: AppColors.border),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Toplam', style: TextStyle(fontWeight: FontWeight.w700)),
-                      Text(
-                        currencyFormat.format(99),
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.accent,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // İade garantisi
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF00D9A3).withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                '✅ Avukat atamayı yapmazsa paranız cüzdanınıza %100 oranında iade edilecektir.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF00D9A3), height: 1.4),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Kart Formu
-            TextFormField(
-              controller: _kartNoController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Kart Numarası',
-                hintText: '1234 5678 9012 3456',
-                prefixIcon: Icon(Icons.credit_card),
-              ),
-              onChanged: (val) {
-                final clean = val.replaceAll(RegExp(r'\D'), '').substring(0, 16);
-                final formatted = clean.replaceAllMapped(
-                  RegExp(r'.{4}'),
-                  (match) => '${match.group(0)} ',
-                ).trim();
-                if (formatted != val) {
-                  _kartNoController.value = TextEditingValue(
-                    text: formatted,
-                    selection: TextSelection.collapsed(offset: formatted.length),
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: TextFormField(
-                    controller: _sonKullanmaController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Son Kullanma',
-                      hintText: 'MM / YY',
-                    ),
-                    onChanged: (val) {
-                      final clean = val.replaceAll(RegExp(r'\D'), '').substring(0, 4);
-                      String formatted = clean;
-                      if (clean.length > 2) {
-                        formatted = '${clean.substring(0, 2)} / ${clean.substring(2)}';
-                      }
-                      if (formatted != val) {
-                        _sonKullanmaController.value = TextEditingValue(
-                          text: formatted,
-                          selection: TextSelection.collapsed(offset: formatted.length),
-                        );
-                      }
-                    },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(davaTuru, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                      Text('$sehir • $dateStr', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _cvvController,
-                    keyboardType: TextInputType.number,
-                    obscureText: true,
-                    maxLength: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'CVV',
-                      hintText: '123',
-                      counterText: '',
-                    ),
+                _buildStatusBadge(status),
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Tahmini Alacak', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                    Text(cf.format(tahminiAlacak), style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800, fontSize: 16)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Bekleyen Talepler', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                    Text('${d['bekleyenTalepSayisi'] ?? 0}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Analiz
+                Theme(
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    title: const Text('📊 Dava Detaylarını Gör', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    children: [
+                      CaseReportWidget(data: d['hesaplamaVerisi'], c: Map<String, dynamic>.from(d)),
+                      const SizedBox(height: 12),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+          ),
 
-            TextFormField(
-              controller: _kartSahibiController,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Kart Üzerindeki İsim',
-                hintText: 'AD SOYAD',
-              ),
+          // Aksiyonlar
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: _buildDavaActions(d),
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 24),
+  List<Widget> _buildDavaActions(dynamic d) {
+    final status = d['status'] ?? 'OPEN';
+    final String davaId = d['id'].toString();
+    List<Widget> actions = [];
 
-            ElevatedButton(
-              onPressed: _isLoading ? null : _processPayment,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+    if (status == 'KAYITLI' || status == 'OPEN') {
+      actions.add(ElevatedButton(
+        onPressed: () => _showLawyerSearch(d['sehir']?.toString() ?? '', davaId),
+        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, padding: const EdgeInsets.symmetric(vertical: 12)),
+        child: const Text('🔍 Avukat Bul & İletişime Geç', style: TextStyle(fontWeight: FontWeight.bold)),
+      ));
+      actions.add(const SizedBox(height: 4));
+      actions.add(TextButton(
+        onPressed: () => _deleteCase(davaId),
+        child: const Text('🗑️ Dosyayı Sil', style: TextStyle(color: AppColors.danger)),
+      ));
+    }
+    else if (status == 'AVUKAT_ARANIYOR') {
+      actions.add(_buildInfoBox('🧐 Yanıt Bekleniyor...', 'Avukata gönderdiğiniz iletişim talebi değerlendiriliyor.', const Color(0xFFFFC107)));
+      actions.add(OutlinedButton(
+        onPressed: () => _showLawyerSearch(d['sehir']?.toString() ?? '', davaId),
+        child: const Text('Başka Avukat Ara'),
+      ));
+    }
+    else if (status == 'PENDING_USER_AUTH') {
+      actions.add(_buildInfoBox('📋 Avukat Vekalet İstiyor', 'Avukatınız evrakları yeterli buldu ve sizden resmi vekalet onayını bekliyor.', AppColors.accent));
+      actions.add(ElevatedButton(
+        onPressed: () => _approveAuth(davaId),
+        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00D9A3), foregroundColor: Colors.black),
+        child: const Text('✅ Vekaleti Onayla ve Yetkilendir', style: TextStyle(fontWeight: FontWeight.bold)),
+      ));
+      actions.add(const SizedBox(height: 8));
+      actions.add(OutlinedButton(onPressed: () => context.push('/chat/$davaId'), child: const Text('💬 Mesajlaş')));
+    }
+    else if (status == 'DAVA_NO_BEKLIYOR') {
+      final davaNo = d['davaNo'] ?? 'Belirtilmedi';
+      actions.add(_buildInfoBox('🏛️ Mahkeme Dosya Numaranız: $davaNo', 'Avukatınız dava numarasını iletti. Kendi belgelerinizle örtüşüyor mu? Lütfen kontrol edip onaylayın.', const Color(0xFFFFB300)));
+      actions.add(ElevatedButton(
+        onPressed: () => _confirmDavaNo(davaId, davaNo),
+        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFB300), foregroundColor: Colors.black),
+        child: const Text('✔️ Numara Doğru - Onayla', style: TextStyle(fontWeight: FontWeight.bold)),
+      ));
+      actions.add(const SizedBox(height: 8));
+      actions.add(OutlinedButton(
+        onPressed: () => _rejectDavaNo(davaId),
+        style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger, side: const BorderSide(color: AppColors.danger)),
+        child: const Text('❌ Teyit Edilmiyor'),
+      ));
+    }
+    else if (status == 'TAHSIL') {
+      actions.add(ElevatedButton(
+        onPressed: () => _confirmCollectionModal(davaId, d['tahsilAciklama'] ?? ''),
+        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE91E63), foregroundColor: Colors.white),
+        child: const Text('✔️ Tahsilatı Onayla ve Kapat', style: TextStyle(fontWeight: FontWeight.bold)),
+      ));
+      actions.add(const SizedBox(height: 8));
+      actions.add(OutlinedButton(onPressed: () => context.push('/chat/$davaId'), child: const Text('💬 Mesajlaş')));
+    }
+    else if (['ACTIVE', 'PRE_CASE_REVIEW', 'AUTHORIZED', 'IN_PROGRESS', 'FILED_IN_COURT', 'DURUSMA'].contains(status)) {
+      actions.add(OutlinedButton(onPressed: () => context.push('/chat/$davaId'), child: const Text('💬 Mesajlaş')));
+    }
+    else if (['CLOSED', 'CANCELED'].contains(status)) {
+      actions.add(Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.danger.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+        ),
+        child: const Center(child: Text('🔒 Dava Dosyası Kapandı', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold, fontSize: 13))),
+      ));
+    }
+
+    return actions;
+  }
+
+  Widget _buildInfoBox(String title, String sub, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
+          const SizedBox(height: 4),
+          Text(sub, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    const labels = {
+      'KAYITLI': '📁 Kayıtlı',
+      'AVUKAT_ARANIYOR': '🧐 Yanıt Bekleniyor',
+      'ACTIVE': '🟢 Aktif Müvekkil',
+      'PRE_CASE_REVIEW': '🧐 Dosya İnceleniyor',
+      'PENDING_USER_AUTH': '⏳ Vekalet İsteniyor',
+      'AUTHORIZED': '✅ Vekalet Verildi',
+      'DAVA_NO_BEKLIYOR': '🏗️ Dosya No Onayı',
+      'FILED_IN_COURT': '🏛️ Dava Açıldı',
+      'IN_PROGRESS': '💬 İşlemde',
+      'DURUSMA': '🏛️ Duruşma Süreci',
+      'TAHSIL': '💰 Tahsil Edildi',
+      'CLOSED': '🛑 Kapatıldı',
+      'CANCELED': '🚫 İptal'
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+      child: Text(labels[status] ?? status, style: const TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  // --- ACTIONS ---
+  void _showLawyerSearch(String city, String caseId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _LawyerSearchModal(city: city, caseId: caseId),
+    ).then((_) => _refresh());
+  }
+
+  Future<void> _cancelSearchAndRetry(String id, String city) async {
+    final confirmed = await _showConfirm('Aramayı İptal Et', 'Mevcut iletişim talebini iptal edip yeni bir avukat aramak istediğinize emin misiniz?');
+    if (confirmed) {
+      try {
+        await CaseService.updateStatus(caseId: id, status: 'KAYITLI', aciklama: 'Kullanıcı talebi iptal etti.');
+        _refresh();
+        _showLawyerSearch(city, id);
+      } catch (e) { _showError(e.toString()); }
+    }
+  }
+
+  Future<void> _deleteCase(String id) async {
+    final confirmed = await _showConfirm('Silme Onayı', 'Bu dava ilanını silmek istediğinize emin misiniz?');
+    if (confirmed) {
+      try { await CaseService.deleteCase(id); _refresh(); } catch (e) { _showError(e.toString()); }
+    }
+  }
+
+  Future<void> _approveAuth(String id) async {
+    final confirmed = await _showConfirm('Vekalet Onayı', 'Avukatınıza resmi vekalet verdiğinizi onaylıyor musunuz?');
+    if (confirmed) {
+      try { await CaseService.updateStatus(caseId: id, status: 'AUTHORIZED', aciklama: 'Kullanıcı vekaleti onayladı.'); _refresh(); } catch (e) { _showError(e.toString()); }
+    }
+  }
+
+  Future<void> _confirmDavaNo(String id, String no) async {
+    final confirmed = await _showConfirm('Dosya No Onayı', 'Mahkeme dosya numarası ($no) doğru mu?');
+    if (confirmed) {
+      try { await CaseService.updateStatus(caseId: id, status: 'FILED_IN_COURT', aciklama: 'Dosya no onaylandı: $no'); _refresh(); } catch (e) { _showError(e.toString()); }
+    }
+  }
+
+  Future<void> _rejectDavaNo(String id) async {
+    final confirmed = await _showConfirm('Hata Bildirimi', 'Dosya numarasının yanlış olduğunu bildirmek istiyor musunuz?');
+    if (confirmed) {
+      try { await CaseService.updateStatus(caseId: id, status: 'AUTHORIZED', aciklama: 'Kullanıcı dosya nosunun yanlış olduğunu bildirdi.'); _refresh(); } catch (e) { _showError(e.toString()); }
+    }
+  }
+
+  Future<void> _confirmCollectionModal(String id, String aciklama) async {
+    final match = RegExp(r'(\d+)').firstMatch(aciklama);
+    final miktar = match != null ? '${match.group(1)} TL' : 'Bilinmeyen Tutar';
+    
+    int rating = 5;
+    final commentController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.bgSurface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 24),
+              const Text('💰', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              const Text('Dava Kapanış Onayı', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text(
+                'Avukatınız bu davanın başarıyla sonuçlandığını (veya anlaşıldığını) bildirdi.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text(
-                      'Ödemeyi Tamamla',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.bgCard,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    const Text('Tahsil Edilen Toplam Tutar:', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                    const SizedBox(height: 4),
+                    Text(miktar, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.accent)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber.withValues(alpha: 0.3))),
+                child: const Text(
+                  '⚠️ Önemli Uyarı: Yukarıdaki tutar fiilen anlaştığınız tutar ile uyuşmuyorsa onaylamayınız. Herhangi bir kandırma işleminde sistemdeki kayıtlar delil sayılacaktır.',
+                  style: TextStyle(fontSize: 11, color: Colors.amber),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text('Avukatınızı Değerlendirin', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) => IconButton(
+                  onPressed: () => setModalState(() => rating = index + 1),
+                  icon: Icon(
+                    index < rating ? Icons.star : Icons.star_border,
+                    color: index < rating ? Colors.amber : AppColors.textMuted,
+                    size: 32,
+                  ),
+                )),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: commentController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Avukatınız hakkındaki düşüncelerinizi paylaşın...',
+                  hintStyle: TextStyle(fontSize: 13),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                '* Dava dosyanızı tamamen sistem üzerinde Kapatmak istediğinize emin misiniz?',
+                style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('İptal'),
                     ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          await CaseService.updateStatus(
+                            caseId: id,
+                            status: 'CLOSED',
+                            aciklama: 'Kullanıcı tahsilatı onayladı ve dosya kapandı.',
+                            tahsilat: double.tryParse(match?.group(1) ?? '0'),
+                            puan: rating,
+                            yorum: commentController.text,
+                          );
+                          Navigator.pop(ctx);
+                          _refresh();
+                          _showSnackBar('Dava başarıyla kapatıldı! 🎉', AppColors.accent);
+                        } catch (e) {
+                          _showError(e.toString());
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE91E63), foregroundColor: Colors.white),
+                      child: const Text('Onayla ve Kapat'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _showConfirm(String title, String msg) async {
+    return await showDialog<bool>(
+      context: context, 
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgCard, 
+        title: Text(title, style: const TextStyle(color: Colors.white)), 
+        content: Text(msg, style: const TextStyle(color: AppColors.textSecondary)), 
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')), 
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent), 
+            child: const Text('Evet', style: TextStyle(color: Colors.black))
+          )
+        ]
+      )
+    ) ?? false;
+  }
+
+  void _showSnackBar(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+  }
+
+  void _showError(String err) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err), backgroundColor: AppColors.danger)); }
+  Widget _buildEmptyState() { return const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.folder_open, size: 64, color: AppColors.textMuted), SizedBox(height: 16), Text('Henüz dava dosyanız yok.', style: TextStyle(color: AppColors.textSecondary))])); }
+  Widget _buildErrorState(String error) { return Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.error_outline, size: 48, color: AppColors.danger), const SizedBox(height: 16), Text(error, textAlign: TextAlign.center), const SizedBox(height: 16), ElevatedButton(onPressed: _refresh, child: const Text('Tekrar Dene'))]))); }
+}
+
+// Avukat Arama Modalı
+class _LawyerSearchModal extends StatefulWidget {
+  final String city;
+  final String caseId;
+  const _LawyerSearchModal({required this.city, required this.caseId});
+
+  @override
+  State<_LawyerSearchModal> createState() => _LawyerSearchModalState();
+}
+
+class _LawyerSearchModalState extends State<_LawyerSearchModal> {
+  late Future<List<dynamic>> _lawyersFuture;
+  bool _isRequesting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _lawyersFuture = LawyerService.searchLawyers(widget.city, widget.caseId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.bgSurface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+              ),
             ),
-            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 12, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('⚖️ Şehrinizdeki Avukatlar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('Hizmet bedeli ödeyerek süreci başlatabilirsiniz.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppColors.border),
+            Expanded(
+              child: FutureBuilder<List<dynamic>>(
+                future: _lawyersFuture,
+                builder: (ctx, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                  final lawyers = snapshot.data ?? [];
+                  if (lawyers.isEmpty) return _buildEmptySearch();
+
+                  return ListView.separated(
+                    controller: controller,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: lawyers.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (ctx, i) {
+                      final l = lawyers[i];
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.bgCard,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildLawyerAvatar(l),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${l['unvan'] ?? 'Av.'} ${l['ad']} ${l['soyad']}', 
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    l['sehir'] ?? '', 
+                                    style: const TextStyle(color: AppColors.textMuted, fontSize: 11)
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.star, color: Colors.amber, size: 14),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${l['ortalamaPuan'] ?? l['puan'] ?? '5.0'} (${l['yorumSayisi'] ?? 0} Yorum)', 
+                                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted)
+                                      ),
+                                    ],
+                                  ),
+                                  if (l['bio'] != null || l['uzmanlik'] != null) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      l['bio'] ?? 'İş hukuku ve işçi alacakları konusunda deneyimli avukat.',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.3),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 4,
+                                      runSpacing: 4,
+                                      children: (l['uzmanlik'] is List)
+                                          ? (l['uzmanlik'] as List).map((u) => Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.bgSurface,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: AppColors.border),
+                                              ),
+                                              child: Text(u.toString(), style: const TextStyle(fontSize: 9, color: AppColors.textSecondary)),
+                                            )).toList()
+                                          : [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.bgSurface,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(color: AppColors.border),
+                                                ),
+                                                child: Text(l['uzmanlik']?.toString() ?? 'İş Hukuku', style: const TextStyle(fontSize: 9, color: AppColors.textSecondary)),
+                                              )
+                                            ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            (() {
+                              final bool talepGonderildi = l['talepGonderildi'] == true;
+                              return ElevatedButton(
+                                onPressed: (_isRequesting || talepGonderildi) ? null : () => _sendRequest(l),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: talepGonderildi ? AppColors.border : AppColors.primary,
+                                  foregroundColor: talepGonderildi ? AppColors.textMuted : Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  elevation: 0,
+                                ),
+                                child: Text(talepGonderildi ? 'Gönderildi' : 'Talep Gönder', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              );
+                            })(),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        ],
+  Widget _buildLawyerAvatar(dynamic l) {
+    return Container(
+      width: 50, height: 50,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(child: Text(l['ad']?[0] ?? 'A', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primaryLight))),
+    );
+  }
+
+  Widget _buildEmptySearch() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🔍', style: TextStyle(fontSize: 48)),
+            const SizedBox(height: 16),
+            Text(
+              widget.city.isEmpty 
+                ? 'Sistemde henüz kayıtlı avukat bulunamadı.'
+                : '${widget.city} şehrinde henüz kayıtlı avukat bulunamadı.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 24),
+            if (widget.city.isNotEmpty)
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _lawyersFuture = LawyerService.searchLawyers('', widget.caseId);
+                  });
+                },
+                child: const Text('Tüm Şehirlerdeki Avukatları Gör'),
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _sendRequest(Map<String, dynamic> l) async {
+    setState(() => _isRequesting = true);
+    try {
+      // 1) Talep gönder
+      await LawyerService.sendContactRequest(avukatId: l['id'].toString(), caseId: widget.caseId);
+      
+      // 2) Web mantığı: Dosya durumunu AVUKAT_ARANIYOR yap
+      await CaseService.updateStatus(
+        caseId: widget.caseId, 
+        status: 'AVUKAT_ARANIYOR', 
+        aciklama: 'Kullanıcı iletişim talebi gönderdi.'
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Talebiniz iletildi!'), backgroundColor: AppColors.accent));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isRequesting = false);
+    }
   }
 }

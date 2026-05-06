@@ -50,6 +50,12 @@ class _ProfileTabState extends State<ProfileTab> {
   final _yeniSifreController = TextEditingController();
   final _yeniSifreConfirmController = TextEditingController();
 
+  final _baroController = TextEditingController();
+  final _baroNoController = TextEditingController();
+  final _deneyimYilController = TextEditingController();
+  final _bioController = TextEditingController();
+  final _unvanController = TextEditingController();
+
   String? _errorMsg;
   String? _sifreError;
 
@@ -102,6 +108,11 @@ class _ProfileTabState extends State<ProfileTab> {
     _soyadController.text = _profilData['soyad'] ?? '';
     _telefonController.text = _profilData['telefon'] ?? '';
     _adresController.text = _profilData['adres'] ?? '';
+    _unvanController.text = _profilData['unvan'] ?? '';
+    _baroController.text = _profilData['baro'] ?? '';
+    _baroNoController.text = _profilData['baroNo'] ?? '';
+    _deneyimYilController.text = (_profilData['deneyimYil'] ?? '').toString();
+    _bioController.text = _profilData['bio'] ?? '';
     _selectedSehir = _profilData['sehir'];
     _selectedPhoto = null;
     _errorMsg = null;
@@ -135,6 +146,11 @@ class _ProfileTabState extends State<ProfileTab> {
         'sehir': _selectedSehir,
         'telefon': _telefonController.text.trim(),
         'adres': _adresController.text.trim(),
+        'unvan': _unvanController.text.trim(),
+        'baro': _baroController.text.trim(),
+        'baroNo': _baroNoController.text.trim(),
+        'deneyimYil': int.tryParse(_deneyimYilController.text.trim()),
+        'bio': _bioController.text.trim(),
         if (finalAvatar != null) 'avatar': finalAvatar,
       });
 
@@ -353,6 +369,14 @@ class _ProfileTabState extends State<ProfileTab> {
           _buildInfoRow(Icons.location_on_outlined, 'Şehir', sehir),
           _buildInfoRow(Icons.home_outlined, 'Adres', adres),
 
+          if (role == 'avukat') ...[
+            const Divider(height: 32, color: AppColors.border),
+            _buildInfoRow(Icons.gavel_outlined, 'Unvan', _profilData['unvan'] ?? 'Avukat'),
+            _buildInfoRow(Icons.account_balance_outlined, 'Baro', '${_profilData['baro'] ?? '—'} / ${_profilData['baroNo'] ?? '—'}'),
+            _buildInfoRow(Icons.history_outlined, 'Deneyim', '${_profilData['deneyimYil'] ?? '0'} Yıl'),
+            _buildInfoRow(Icons.info_outline, 'Hakkında', _profilData['bio'] ?? '—'),
+          ],
+
           const SizedBox(height: 24),
 
           // Düzenle butonu
@@ -509,6 +533,26 @@ class _ProfileTabState extends State<ProfileTab> {
               prefixIcon: Icons.home_outlined,
               maxLines: 2),
           const SizedBox(height: 20),
+
+          if (_profilData['role'] == 'avukat') ...[
+            const Divider(height: 32, color: AppColors.border),
+            const Text('Avukat Bilgileri', style: TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            _buildField(_unvanController, 'Unvan (Örn: Av.)', prefixIcon: Icons.gavel_outlined),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(child: _buildField(_baroController, 'Baro', prefixIcon: Icons.account_balance_outlined)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildField(_baroNoController, 'Baro No')),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _buildField(_deneyimYilController, 'Deneyim Yılı', keyboardType: TextInputType.number, prefixIcon: Icons.history_outlined),
+            const SizedBox(height: 14),
+            _buildField(_bioController, 'Hakkında (Bio)', maxLines: 4, prefixIcon: Icons.info_outline),
+            const SizedBox(height: 20),
+          ],
 
           // Hata mesajı
           if (_errorMsg != null) ...[

@@ -13,7 +13,7 @@ class ApiService {
   // Gerçek cihaz bağlantısı olmuyorsa aşağıdaki IP'yi elle değiştirin:
   //   static const String _realDeviceIp = '10.196.23.67';
   // ---------------------------------------------------------------------------
-  static const String _realDeviceIp = '10.190.250.152'; // backend bilgisayarınızın local IP'si
+  static const String _realDeviceIp = '10.196.120.110'; // backend bilgisayarınızın local IP'si
   static const int _port = 3000;
 
   static String get baseUrl {
@@ -28,8 +28,8 @@ class ApiService {
 
   static final Dio dio = Dio(BaseOptions(
     baseUrl: baseUrl,
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 15),
+    connectTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 60),
     headers: {
       'Content-Type': 'application/json',
     },

@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_colors.dart';
 import '../services/lawyer_service.dart';
+import '../services/case_service.dart';
 import '../services/api_service.dart';
+import '../providers/auth_provider.dart';
 
 class MessagesTab extends StatefulWidget {
   const MessagesTab({super.key});
@@ -16,56 +18,8 @@ class MessagesTab extends StatefulWidget {
 
 class _MessagesTabState extends State<MessagesTab> {
   late Future<List<dynamic>> _future;
-
-  String _resolveAvatarUrl(String? avatar) {
-    if (avatar == null) return '';
-    final a = avatar.toString().trim();
-    if (a.isEmpty) return '';
-    if (a.startsWith('http')) return a;
-
-    final serverRoot = ApiService.baseUrl.replaceAll(RegExp(r'/api$'), '');
-    if (a.startsWith('/')) return '$serverRoot$a';
-    return '$serverRoot/$a';
-  }
-
-  Widget _buildAvatar({required String? avatarPath, required String initials, required double radius}) {
-    final resolved = _resolveAvatarUrl(avatarPath);
-    if (resolved.isEmpty) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundColor: AppColors.primaryDark,
-        child: Text(
-          initials,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-        ),
-      );
-    }
-
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: AppColors.primaryDark,
-      child: ClipOval(
-        child: Image.network(
-          resolved,
-          width: radius * 2,
-          height: radius * 2,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) {
-            return Container(
-              width: radius * 2,
-              height: radius * 2,
-              color: AppColors.primaryDark,
-              alignment: Alignment.center,
-              child: Text(
-                initials,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -74,277 +28,326 @@ class _MessagesTabState extends State<MessagesTab> {
   }
 
   void _loadData() {
-    _future = LawyerService.getActiveCases();
+    final auth = context.read<AuthProvider>();
+    final isLawyer = auth.user?['role'] == 'avukat';
+    if (isLawyer) {
+      _future = LawyerService.getAllClientFiles();
+    } else {
+      _future = CaseService.getMyCases();
+    }
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _loadData();
-    });
+    setState(() => _loadData());
+  }
+
+  String _resolveAvatarUrl(String? avatar) {
+    if (avatar == null) return '';
+    final a = avatar.toString().trim();
+    if (a.isEmpty) return '';
+    if (a.startsWith('http')) return a;
+    final serverRoot = ApiService.baseUrl.replaceAll(RegExp(r'/api$'), '');
+    if (a.startsWith('/')) return '$serverRoot$a';
+    return '$serverRoot/$a';
   }
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      color: AppColors.primary,
-      backgroundColor: AppColors.bgSurface,
-      child: FutureBuilder<List<dynamic>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: AppColors.primary),
-                  SizedBox(height: 16),
-                  Text('Yükleniyor...', style: TextStyle(color: AppColors.textSecondary)),
-                ],
-              ),
-            );
-          }
-
-          if (snapshot.hasError) {
-            final errorStr = snapshot.error.toString().replaceAll('Exception: ', '');
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: AppColors.danger),
-                  const SizedBox(height: 16),
-                  Text(errorStr, textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
-                  ElevatedButton(onPressed: _refresh, child: const Text('Tekrar Dene')),
-                ],
-              ),
-            );
-          }
-
-          final allOffers = snapshot.data ?? [];
-
-          final activeCases = allOffers.where((t) {
-            final bool isSelected = t['status'] == 'SELECTED';
-            final String caseStatus = t['caseStatus'] ?? '';
-            final List<String> activeStatuses = [
-              'PRE_CASE_REVIEW', 'AUTHORIZED', 'ACTIVE', 'LAWYER_ASSIGNED',
-              'FILED_IN_COURT', 'IN_PROGRESS', 'ILK_GORUSME', 'DAVA_ACILDI',
-              'DURUSMA', 'TAHSIL', 'CLOSED', 'KAPANDI'
-            ];
-            return isSelected && activeStatuses.contains(caseStatus);
-          }).toList();
-
-          if (activeCases.isEmpty) {
-            return ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                const SizedBox(height: 80),
-                const Icon(Icons.chat_bubble_outline, size: 80, color: AppColors.textMuted),
-                const SizedBox(height: 16),
-                const Text(
-                  'Aktif dava yok.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.bgBase,
+        body: Column(
+          children: [
+            // Arama Çubuğu (Görseldeki gibi)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.bgCard,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Teklifiniz kabul edilip ödeme yapıldıktan sonra mesajlaşabilirsiniz.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  decoration: const InputDecoration(
+                    hintText: 'Avukat veya dava ara...',
+                    hintStyle: TextStyle(color: AppColors.textMuted),
+                    prefixIcon: Icon(Icons.search, color: AppColors.textMuted, size: 20),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ),
+
+            // Tab Bar (Görseldeki gibi)
+            TabBar(
+              indicatorColor: AppColors.accent,
+              indicatorWeight: 3,
+              labelColor: AppColors.accent,
+              unselectedLabelColor: AppColors.textMuted,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              tabs: const [
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.chat_bubble_outline, size: 16),
+                      SizedBox(width: 8),
+                      Text('Aktif Sohbetler'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.folder_open, size: 16, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text('Geçmiş Sohbetler'),
+                    ],
+                  ),
                 ),
               ],
-            );
-          }
+            ),
 
-          if (activeCases.length == 1) {
-            final singleCase = activeCases.first;
-            final caseId = singleCase['caseId']?.toString() ?? '';
-            
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              context.push('/chat/$caseId');
-            });
-            
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: AppColors.primary),
-                  SizedBox(height: 16),
-                  Text('Sohbet açılıyor...', style: TextStyle(color: AppColors.textSecondary)),
-                ],
-              ),
-            );
-          }
+            Expanded(
+              child: FutureBuilder<List<dynamic>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                  }
+                  if (snapshot.hasError) return _buildErrorState(snapshot.error.toString());
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(bottom: 16),
-                child: Text(
-                  'Müvekkilinizi seçin:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
+                  final allCases = snapshot.data ?? [];
+                  
+                  // Arama Filtresi
+                  final filtered = allCases.where((c) {
+                    final name = (c['kullanici']?['ad'] ?? c['avukat']?['ad'] ?? '').toString().toLowerCase();
+                    final type = (c['davaTuru'] ?? '').toString().toLowerCase();
+                    return name.contains(_searchQuery.toLowerCase()) || type.contains(_searchQuery.toLowerCase());
+                  }).toList();
+
+                  return TabBarView(
+                    children: [
+                      _buildCasesList(filtered, isActive: true),
+                      _buildCasesList(filtered, isActive: false),
+                    ],
+                  );
+                },
               ),
-              ...activeCases.map((c) => _buildCaseCard(context, c)).toList(),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCaseCard(BuildContext context, dynamic c) {
-    final dateFormat = DateFormat('dd.MM.yyyy');
-    final currencyFormat = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
+  Widget _buildCasesList(List<dynamic> cases, {required bool isActive}) {
+    final list = cases.where((c) {
+      final status = (c['status'] ?? '').toString().toUpperCase();
+      final isClosed = ['CLOSED', 'KAPANDI', 'REJECTED'].contains(status);
+      return isActive ? !isClosed : isClosed;
+    }).toList();
 
-    final String caseId = (c['caseId'] ?? '').toString();
-    final String davaTuru = c['caseDavaTuru'] ?? 'Hukuki Danışmanlık';
-    final String sehir = c['caseSehir'] ?? '';
+    if (list.isEmpty) {
+      return Center(child: Text(isActive ? 'Aktif sohbet bulunamadı.' : 'Geçmiş sohbet bulunamadı.', style: const TextStyle(color: AppColors.textMuted)));
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      color: AppColors.accent,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: list.length,
+        itemBuilder: (ctx, i) => _buildWebStyleCard(list[i], isActive),
+      ),
+    );
+  }
+
+  Widget _buildWebStyleCard(dynamic c, bool isActive) {
+    final auth = context.read<AuthProvider>();
+    final isLawyer = auth.user?['role'] == 'avukat';
     
-    String? createdAt = c['createdAt'] ?? c['selectedAt'];
+    final String caseId = (c['id'] ?? c['caseId'] ?? '').toString();
+    final String davaTuru = c['davaTuru'] ?? 'Hukuki Dosya';
+    final String status = (c['status'] ?? '').toString().toUpperCase();
+    final String sehir = c['sehir'] ?? 'Ankara';
     
     double tahminiAlacak = 0.0;
     var rawAlacak = c['tahminiAlacak'];
-    if (rawAlacak != null) {
-      if (rawAlacak is num) {
-        tahminiAlacak = rawAlacak.toDouble();
-      } else if (rawAlacak is String) {
-        tahminiAlacak = double.tryParse(rawAlacak) ?? 0.0;
-      }
+    if (rawAlacak is num) tahminiAlacak = rawAlacak.toDouble();
+    else if (rawAlacak is String) tahminiAlacak = double.tryParse(rawAlacak) ?? 0.0;
+
+    String name = 'Müvekkil';
+    String? avatar;
+    if (isLawyer) {
+      name = '${c['kullanici']?['ad'] ?? ''} ${c['kullanici']?['soyad'] ?? ''}'.trim();
+      avatar = c['kullanici']?['avatar'];
+    } else {
+      name = '${c['avukat']?['ad'] ?? ''} ${c['avukat']?['soyad'] ?? ''}'.trim();
+      avatar = c['avukat']?['avatar'];
     }
-    
-    final int okunmamisMesaj = c['okunmamisMesaj'] ?? 0;
-    final String muvekkilAd = c['muvekkilAd'] ?? '';
-    final String muvekkilSoyad = c['muvekkilSoyad'] ?? '';
-    // Alternatif alan adlarını dene
-    final String? muvekkilAvatar = c['muvekkilAvatar'] ?? c['muvekkil_avatar'] ?? c['avatar'] ?? c['userAvatar'] ?? c['user_avatar'];
-    final String muvekkilInitials = muvekkilAd.isNotEmpty ? muvekkilAd[0].toUpperCase() : 'M';
+    if (name.isEmpty) name = isLawyer ? 'Müvekkil' : 'Avukat';
 
-    // Debug: Avatar URL'sini kontrol et
-    debugPrint('AVATAR DEBUG: raw=$muvekkilAvatar, resolved=${_resolveAvatarUrl(muvekkilAvatar)}');
+    final String lastMsg = c['sonMesaj'] ?? 'Henüz mesaj yok - Sohbeti başlatın';
+    final String gonderen = c['sonMesajGonderen'] == auth.user?['id']?.toString() ? 'Siz' : (isLawyer ? 'Müvekkil' : 'Avukat');
+    final String time = c['sonMesajTarih'] != null 
+        ? _formatTime(c['sonMesajTarih'])
+        : '';
 
-    String kisaltilmisTarih = '';
-    if (createdAt != null) {
-      try {
-        kisaltilmisTarih = dateFormat.format(DateTime.parse(createdAt.toString()));
-      } catch (e) {
-        kisaltilmisTarih = createdAt.toString();
-      }
-    }
-
-    return InkWell(
-      onTap: () => context.push('/chat/$caseId'),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: AppColors.bgCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.bgCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Üst Kısım: Avatar ve İsim
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                  ),
-                ),
-              ),
+              _buildAvatar(avatar, name[0]),
+              const SizedBox(width: 16),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          _buildAvatar(avatarPath: muvekkilAvatar, initials: muvekkilInitials, radius: 24),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  muvekkilAd.isNotEmpty ? '$muvekkilAd $muvekkilSoyad' : 'Müvekkil',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                ),
-                                Text(
-                                  davaTuru,
-                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Divider(color: AppColors.border),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(sehir, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                              Text(kisaltilmisTarih, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              const Text('Tahmini Alacak', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                              Text(
-                                currencyFormat.format(tahminiAlacak),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.accent),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          if (okunmamisMesaj > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE63946),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '$okunmamisMesaj Yeni',
-                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          const Spacer(),
-                          ElevatedButton.icon(
-                            onPressed: () => context.push('/chat/$caseId'),
-                            icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                            label: const Text('Sohbeti Aç'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.white)),
+                        if (time.isNotEmpty) Text(time, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                      ],
+                    ),
+                    Text(davaTuru, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(width: 8, height: 8, decoration: BoxDecoration(color: isActive ? Colors.grey : Colors.grey, shape: BoxShape.circle)),
+                        const SizedBox(width: 8),
+                        Text(isActive ? 'ACTIVE' : '🔒 Kapandı', style: TextStyle(color: isActive ? AppColors.textSecondary : Colors.orange, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
+
+          const SizedBox(height: 16),
+
+          // Orta Kısım: Son Mesaj Kutusu (Görseldeki gibi)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              lastMsg == 'Henüz mesaj yok - Sohbeti başlatın' ? lastMsg : '$gonderen: $lastMsg',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: lastMsg.contains('Henüz') ? AppColors.textMuted : AppColors.textSecondary, fontSize: 13.5),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+          const Divider(color: AppColors.border, height: 1),
+          const SizedBox(height: 16),
+
+          // Alt Kısım: Şehir, Tutar ve Buton
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: AppColors.danger),
+                      const SizedBox(width: 4),
+                      Text(sehir, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    NumberFormat.currency(locale: 'tr_TR', symbol: '₺', decimalDigits: 0).format(tahminiAlacak),
+                    style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ],
+              ),
+              ElevatedButton.icon(
+                onPressed: () => context.push('/chat/$caseId'),
+                icon: Icon(isActive ? Icons.chat_bubble : Icons.menu_book, size: 16),
+                label: Text(isActive ? 'Sohbeti Aç' : 'Geçmişi Gör'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1), // Web'deki mor/mavi ton
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  String _formatTime(String? dateStr) {
+    if (dateStr == null) return '';
+    try {
+      final date = DateTime.parse(dateStr);
+      final diff = DateTime.now().difference(date);
+      if (diff.inMinutes < 60) return '${diff.inMinutes} dk önce';
+      if (diff.inHours < 24) return '${diff.inHours} sa önce';
+      return DateFormat('dd MMM').format(date);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Widget _buildAvatar(String? path, String initial) {
+    final resolved = _resolveAvatarUrl(path);
+    return Container(
+      width: 56, height: 56,
+      decoration: BoxDecoration(
+        color: AppColors.bgSurface,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.border, width: 2),
+      ),
+      child: ClipOval(
+        child: resolved.isNotEmpty
+          ? Image.network(resolved, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildInitialAvatar(initial))
+          : _buildInitialAvatar(initial),
+      ),
+    );
+  }
+
+  Widget _buildInitialAvatar(String initial) {
+    return Container(
+      color: Colors.grey.withOpacity(0.2),
+      alignment: Alignment.center,
+      child: Text(initial.toLowerCase(), style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 24)),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    return Center(child: Text(error, style: const TextStyle(color: AppColors.danger)));
   }
 }

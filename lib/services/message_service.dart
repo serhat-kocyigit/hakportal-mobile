@@ -27,6 +27,20 @@ class MessageService {
     }
   }
 
+  static Future<String> uploadFile(List<int> bytes, String fileName) async {
+    try {
+      final formData = FormData.fromMap({
+        'dosya': MultipartFile.fromBytes(bytes, filename: fileName),
+      });
+      final response = await ApiService.dio.post('/messages/upload', data: formData);
+      return response.data['url'];
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['error'] ?? 'Dosya yüklenemedi.');
+    } catch (e) {
+      throw Exception('Dosya yükleme hatası: $e');
+    }
+  }
+
   static Future<int> getUnreadCount() async {
     try {
       final response = await ApiService.dio.get('/messages/okunmamis-sohbet');
