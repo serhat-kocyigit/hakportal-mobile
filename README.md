@@ -94,3 +94,7 @@ lib/
 
 ---
 ⭐ Bu projeyi beğendiyseniz yıldız vermeyi unutmayın!
+
+## 📜 Telif Hakkı ve Lisans
+
+Bu projenin tüm hakları **Serhat Koçyiğit**'e aittir. Bu yazılımın izinsiz kopyalanması, dağıtılması veya herhangi bir ticari amaçla kullanılması **kesinlikle yasaktır**. Proje üzerindeki tüm fikri mülkiyet hakları saklıdır.
